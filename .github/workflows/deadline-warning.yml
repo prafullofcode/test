@@ -3,7 +3,7 @@ name: Deadline Warning
 on:
   schedule:
     # Runs every day at 18:00 UTC
-    - cron: '15 10 * * *'
+    - cron: "15 10 * * *"
   workflow_dispatch:
 
 jobs:
