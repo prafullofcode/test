@@ -1,0 +1,53 @@
+name: Deadline Warning
+
+on:
+  schedule:
+    # Runs every day at 18:00 UTC
+    - cron: '15 10 * * *'
+  workflow_dispatch:
+
+jobs:
+  deadline-warning:
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install GitHub CLI
+        run: sudo apt-get install gh -y
+
+      - name: Check deadline window
+        id: deadline_check
+        run: |
+          DEADLINE_UTC="2025-02-15 18:15:00"
+          NOW_UTC=$(date -u +"%Y-%m-%d %H:%M:%S")
+
+          DEADLINE_TS=$(date -d "$DEADLINE_UTC" +%s)
+          NOW_TS=$(date -d "$NOW_UTC" +%s)
+
+          DIFF_SECONDS=$((DEADLINE_TS - NOW_TS))
+
+          # 24 hours = 86400 seconds
+          if [ "$DIFF_SECONDS" -le 86400 ] && [ "$DIFF_SECONDS" -gt 0 ]; then
+            echo "warn=true" >> $GITHUB_OUTPUT
+          else
+            echo "warn=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Create warning issue
+        if: steps.deadline_check.outputs.warn == 'true'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          EXISTING=$(gh issue list --search "Deadline Approaching" --state open --json number --jq 'length')
+
+          if [ "$EXISTING" -eq 0 ]; then
+            gh issue create \
+              --title "⚠️ Deadline Approaching (24 Hours Left)" \
+              --body "The submission deadline is **2025-02-15 18:15 UTC**.\n\nAny commits pushed after this time may be disqualified."
+          else
+            echo "Warning issue already exists"
+          fi

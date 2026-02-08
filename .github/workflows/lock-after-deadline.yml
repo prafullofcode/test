@@ -1,0 +1,39 @@
+name: Lock Repository After Deadline
+
+on:
+  schedule:
+    - cron: '18 10 8 2 *'
+  workflow_dispatch:
+
+jobs:
+  lock:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      issues: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install GitHub CLI
+        run: sudo apt-get install gh -y
+
+      - name: Create deadline marker
+        run: echo "DEADLINE PASSED" > DEADLINE_PASSED.md
+
+      - name: Commit marker
+        run: |
+          git config user.name "Deadline Bot"
+          git config user.email "actions@github.com"
+          git add DEADLINE_PASSED.md
+          if git diff --staged --quiet; then
+            echo "No changes"
+          else
+            git commit -m "Deadline passed"
+            git push
+          fi
+
+      - name: Create issue
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh issue create --title "Deadline Passed" --body "Submissions closed"
